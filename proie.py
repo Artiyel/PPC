@@ -1,9 +1,8 @@
-import random,signal,time
+import random,time
 
 def proie():
     energie=100
-    Alive=True
-    while Alive:
+    while energie>0:
         time.sleep(random.randint(0,5))
         if energie > 80:
             print("feed on grass (and more)")
@@ -18,4 +17,3 @@ def proie():
             print("se reposer")
             #gagne de l'energie
         #perd de l'énergie
-        
