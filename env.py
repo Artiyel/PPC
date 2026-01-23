@@ -9,60 +9,17 @@ def server_request_update(client_socket):
     global serve 
     client_socket.setblocking(True)
     try:
-        liste = loads(client_socket.recv(1024).decode()) #format de liste : ["type","espece qui envoie l'info","pid"] type=eats,died,reproduce
-        print(liste)
-        exit
+        data=client_socket.recv(1024)
+        liste = loads(data) #format de liste : ["type","espece qui envoie l'info","pid"] type=eats,died,reproduce
         if liste[0] == 'died':
-            with pid_log_lock:
-                for i, (pid, processus) in enumerate(pid_log[liste[1]]):
-                    if pid == liste[2]:
-                        processus.terminate()
-                        processus.join()
-                        del pid_log[liste[1]][i]
-                        break
+            dies_like_a_bozo(liste)
 
-            match liste[1]:
-                case "pred":
-                    with populations.get_lock():
-                        populations[0]-=1
-                        Queue.put(("pred",populations[0]))
-                case "proie":
-                    with populations.get_lock():
-                        populations[1]-=1
-                        Queue.put(("proie",populations[1]))
         elif liste[0] == "reproduce":
-            match liste[1]:
-                case "pred":
-                    Process(target=predateur.predateur, args=()).start()
-                    with populations.get_lock():
-                        populations[0]+=1
-                        Queue.put(("pred",populations[0]))
-                case "proie":
-                    Process(target=proie.proie, args=()).start()
-                    with populations.get_lock():
-                        populations[1]+=1
-                        Queue.put(("proie",populations[1]))
-                case "grass":
-                    with populations.get_lock():
-                        populations[2]= int(populations[2]*1.25)
-                        Queue.put(("grass",populations[2]))
-        else:
-            match liste[1]:
-                case "pred":
-                    with pid_log_lock:
-                        on_tue_ki_index=random.randint(0,len(pid_log["pred"])-1)
-                        (a,b)=pid_log["pred"][on_tue_ki_index]
-                        b.terminate()
-                        b.join()
-                        del pid_log["pred"][pid_log["pred"][on_tue_ki_index]]
+            reproduce_like_a_chad(liste)
 
-                    with populations.get_lock():
-                        populations[1]-=1
-                        Queue.put(("proie",populations[1]))
-                case "proie":
-                    with populations.get_lock():
-                        populations[2]+=1
-                        Queue.put(("grass",populations[2]))
+        else:
+            try_to_kill(liste)
+            
     except Exception as e:
         print("Client error:", e)
 
@@ -73,14 +30,77 @@ def server_request_update(client_socket):
             pass
         client_socket.close()
 
-        
+
+
+def dies_like_a_bozo(liste):
+    with pid_log_lock:
+        for i, (pid, processus) in enumerate(pid_log[liste[1]]):
+            if pid == liste[2]:
+                processus.terminate()
+                processus.join()
+                del pid_log[liste[1]][i]
+                break
+
+    match liste[1]:
+        case "pred":
+            with populations.get_lock():
+                populations[0]-=1
+                Queue.put(("pred",populations[0]))
+        case "proie":
+            with populations.get_lock():
+                populations[1]-=1
+                Queue.put(("proie",populations[1]))
+
+def try_to_kill(liste):
+    match liste[1]:
+        case "pred":
+            with pid_log_lock:
+                on_tue_ki_index=random.randint(0,len(pid_log["pred"])-1)
+                (a,b)=pid_log["pred"][on_tue_ki_index]
+                b.terminate()
+                b.join()
+                del pid_log["pred"][pid_log["pred"][on_tue_ki_index]]
+
+            with populations.get_lock():
+                populations[1]-=1
+                Queue.put(("proie",populations[1]))
+        case "proie":
+            with populations.get_lock():
+                populations[2]+=1
+                Queue.put(("grass",populations[2]))
+
+def reproduce_like_a_chad(liste):
+    match liste[1]:
+        case "pred":
+            Process(target=predateur.predateur, args=()).start()
+            with populations.get_lock():
+                populations[0]+=1
+                Queue.put(("pred",populations[0]))
+        case "proie":
+            Process(target=proie.proie, args=()).start()
+            with populations.get_lock():
+                populations[1]+=1
+                Queue.put(("proie",populations[1]))
+        case "grass":
+            with populations.get_lock():
+                populations[2]= int(populations[2]*1.25)
+                Queue.put(("grass",populations[2]))
+
+def send_data_to_display(species):
+    with populations.get_lock():
+        match species:
+            case "grass":
+                Queue.put("grass",populations[2])
+            case "proie":
+                Queue.put("proie",populations[1])
+            case "pred":
+                Queue.put("pred",populations[0])
 
 if __name__ == '__main__':
-
     
     populations = Array('i', [10,10,10])
     lock_pops= populations.get_lock()
-    grass_status= Value("c",'n')
+    grass_status= Value("c")
     pid_log={
         "pred":[],
         "proie":[],#liste de tuples (pid:process)
@@ -108,7 +128,6 @@ if __name__ == '__main__':
                         pid_log["proie"].append((p.pid,p))
             case 2:
                 Process(target=grass.herbe_growth,args=(populations,grass_status)).start()
-
 
  
     #intialiser le serveur qui gere la commmunication avec la population.

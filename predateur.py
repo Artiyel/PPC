@@ -7,17 +7,18 @@ def predateur_decision(energie):
         time.sleep(random.randint(1,5))
         if energie > 80:
             print("feed on prey (and more)")
-            #gagne un peu d'energie from eating prey
-            #reproduce
-            #perd 5 energie en plus (ils baisent fort)
+            update=["eats","pred",f"{getpid()}"]
+            update=["reproduce","pred",f"{getpid()}"]
+            energie=energie
 
         elif energie > 60 :
             print("just feed on prey")
-            #gagne un peu d'energie from eating prey
+            update=["eats","pred",f"{getpid()}"]
         else :
             print("se reposer")
-            #gagne un petit peu
-        return [],energie-10
+            update=None
+            energie=energie
+        return update,energie-10
     return ["died","pred",f"{getpid()}"],0
 
 
@@ -25,7 +26,7 @@ def predateur_decision(energie):
 def predateur():
     #init du predateur
     time.sleep(1) #pour avoir le temps de lancer le serveur avant que la connection ne s'effectue
-    energie=100
+    energie=70
     
     #init communication avec env
     HOST = "localhost"
@@ -34,8 +35,8 @@ def predateur():
         client_socket.connect((HOST, PORT))
         while True:
             m,energie = predateur_decision(energie)
-            if m != []:
-                client_socket.sendall()
+            if m != None:
+                client_socket.send(dumps(m))
 
 if __name__=="__main__":
     predateur()
