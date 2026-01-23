@@ -81,25 +81,25 @@ def reproduce_like_a_chad(liste):
             Process(target=predateur.predateur, args=()).start()
             with populations.get_lock():
                 populations[0]+=1
-                Queue.put(("pred",populations[0]))
+                send_data_to_display("pred")
         case "proie":
             Process(target=proie.proie, args=()).start()
             with populations.get_lock():
                 populations[1]+=1
-                Queue.put(("proie",populations[1]))
+                send_data_to_display("proie")
         case "grass":
             with populations.get_lock():
                 populations[2]= int(populations[2]*1.25)
-                Queue.put(("grass",populations[2]))
+                send_data_to_display("grass")
 
 def send_data_to_display(species):
     match species:
         case "grass":
-            Queue.put("grass",populations[2])
+            queue.put("grass",populations[2])
         case "proie":
-            Queue.put("proie",populations[1])
+            queue.put("proie",populations[1])
         case "pred":
-            Queue.put("pred",populations[0])
+            queue.put("pred",populations[0])
 
 if __name__ == '__main__':
     
