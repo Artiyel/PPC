@@ -11,6 +11,7 @@ def server_request_update(client_socket):
     try:
         data=client_socket.recv(1024)
         liste = loads(data) #format de liste : ["type","espece qui envoie l'info","pid"] type=eats,died,reproduce
+        
         if liste[0] == 'died':
             dies_like_a_bozo(liste)
 
@@ -18,7 +19,7 @@ def server_request_update(client_socket):
             reproduce_like_a_chad(liste)
 
         else:
-            try_to_kill(liste)
+            try_to_kill(liste,client_socket)
             
     except Exception as e:
         print("Client error:", e)
@@ -34,40 +35,45 @@ def server_request_update(client_socket):
 
 def dies_like_a_bozo(liste):
     with pid_log_lock:
-        for i, (pid, processus) in enumerate(pid_log[liste[1]]):
+        for i, (pid, processus) in enumerate(pid_log[liste[1]]): #rework pour attendre de finir une étape!!!!!
             if pid == liste[2]:
                 processus.terminate()
                 processus.join()
                 del pid_log[liste[1]][i]
-                break
+                break #until ici !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-    match liste[1]:
-        case "pred":
-            with populations.get_lock():
+    with populations.get_lock():
+        match liste[1]:
+            case "pred":
                 populations[0]-=1
-                Queue.put(("pred",populations[0]))
-        case "proie":
-            with populations.get_lock():
+                send_data_to_display('pred')
+            case "proie":
                 populations[1]-=1
-                Queue.put(("proie",populations[1]))
+                send_data_to_display('proie')
 
-def try_to_kill(liste):
-    match liste[1]:
-        case "pred":
-            with pid_log_lock:
-                on_tue_ki_index=random.randint(0,len(pid_log["pred"])-1)
-                (a,b)=pid_log["pred"][on_tue_ki_index]
-                b.terminate()
-                b.join()
-                del pid_log["pred"][pid_log["pred"][on_tue_ki_index]]
+def try_to_kill(liste,client_socket):
+    succes='no'
+    with populations.get_lock():
+        match liste[1]:
+            case "pred":
+                if populations[1]>0:
+                    succes='yes'
+                    with pid_log_lock:  #rework ce block !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                        on_tue_ki_index=random.randint(0,len(pid_log["pred"])-1)
+                        (a,b)=pid_log["pred"][on_tue_ki_index]
+                        b.terminate()
+                        b.join()
+                        del pid_log["pred"][pid_log["pred"][on_tue_ki_index]] #until ici !!!!!!!!!!!!!!!!!
+                    populations[1]-=1
+                    send_data_to_display('proie')
 
-            with populations.get_lock():
-                populations[1]-=1
-                Queue.put(("proie",populations[1]))
-        case "proie":
-            with populations.get_lock():
-                populations[2]+=1
-                Queue.put(("grass",populations[2]))
+            case "proie":
+                if populations[2]> 0:
+                    populations[2]-=1
+                    send_data_to_display('grass')
+                    succes="yes"
+
+    client_socket.send(succes.encode())
 
 def reproduce_like_a_chad(liste):
     match liste[1]:
@@ -87,14 +93,13 @@ def reproduce_like_a_chad(liste):
                 Queue.put(("grass",populations[2]))
 
 def send_data_to_display(species):
-    with populations.get_lock():
-        match species:
-            case "grass":
-                Queue.put("grass",populations[2])
-            case "proie":
-                Queue.put("proie",populations[1])
-            case "pred":
-                Queue.put("pred",populations[0])
+    match species:
+        case "grass":
+            Queue.put("grass",populations[2])
+        case "proie":
+            Queue.put("proie",populations[1])
+        case "pred":
+            Queue.put("pred",populations[0])
 
 if __name__ == '__main__':
     
@@ -153,8 +158,6 @@ if __name__ == '__main__':
             readable, _, _ = select.select([server_socket], [], [], 1)
             if server_socket in readable:
                 queue.put(("pred",populations[0]))
-                queue.put(("prey",populations[1]))
-                queue.put(("grass",populations[2]))
                 action = pipe[0].recv()
                 if action == "quit":
                     queue.put(("exit",))
