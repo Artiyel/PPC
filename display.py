@@ -48,9 +48,9 @@ def display(queue,events):
 
     fig, ax = plt.subplots()
     #on initialise les courbes
-    line_grass, = ax.plot([], [], label="Grass")
-    line_prey,  = ax.plot([], [], label="Prey")
-    line_pred,  = ax.plot([], [], label="Pred")
+    line_grass, = ax.plot([0], [0], label="Grass")
+    line_prey,  = ax.plot([0], [0], label="Prey")
+    line_pred,  = ax.plot([0], [0], label="Pred")
     fig.legend()
 
     cgrass = [0]

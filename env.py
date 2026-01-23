@@ -1,4 +1,4 @@
-from multiprocessing import Lock,Process,Array,Value,Queue,Pipe
+from multiprocessing import Lock,Process,Array,Value,Queue,Event
 import select,random,socket
 import grass,predateur,proie,display
 from pickle import loads
@@ -144,9 +144,11 @@ if __name__ == '__main__':
     server_socket.listen()
     server_socket.setblocking(False)
     queue = Queue(10)
-    pipe = Pipe()
-    display = Process(target = display.display, args = (queue,pipe[1]))
-    display.start()
+    evnevent = Event()
+    evnquit = Event()
+    events = [evnevent,evnquit]
+    displ = Process(target = display.display, args = (queue,events))
+    displ.start()
 
     pool = ThreadPoolExecutor()
     
@@ -154,14 +156,14 @@ if __name__ == '__main__':
 
     sim_running = True
     while sim_running:
+        queue.put(("pred",populations[0]))
+        if  evnquit:
+            queue.put(("exit",))
+            sim_running = False
+            # mettre comment arrêter le reste
         try:
             readable, _, _ = select.select([server_socket], [], [], 1)
             if server_socket in readable:
-                queue.put(("pred",populations[0]))
-                action = pipe[0].recv()
-                if action == "quit":
-                    queue.put(("exit",))
-                    # mettre comment arrêter le reste
                 client_socket, addr = server_socket.accept()
                 pool.submit(server_request_update, client_socket)
         except OSError:
