@@ -37,7 +37,8 @@ def servertest(pipe):
         print(pipe.recv())
 
 def display(queue,pipe):
-    ''''''
+    '''
+    '''
     run = True
     reftime = time.perf_counter()
 
@@ -51,12 +52,23 @@ def display(queue,pipe):
     line_grass, = ax.plot([], [], label="Grass")
     line_prey,  = ax.plot([], [], label="Prey")
     line_pred,  = ax.plot([], [], label="Pred")
+    fig.legend()
+
+    #on gère les boutons
+    callback = Index()
+    callback.pipe=pipe
+    axevent = fig.add_axes([0.7, 0.05, 0.1, 0.075])
+    axquit = fig.add_axes([0.81,0.05,0.1, 0.075])
+    bevent = Button(axevent, 'Event')
+    bevent.on_clicked(callback.event)
+    bquit = Button(axquit, 'Quit')
+    bquit.on_clicked(callback.quit)
 
     while run:
         try :
             data = queue.get(timeout = 0.1) #on récupère les données (avec un timeout pour ne pas etre bloqué)
         except :
-            continue
+           data = (None,None)
 
         if data[0]=="exit": #condition de sortie de boucle
             run = False
@@ -85,15 +97,6 @@ def display(queue,pipe):
         line_grass.set_data(t, cgrass)
         line_prey.set_data(t, cprey)
         line_pred.set_data(t, cpred)
-        #on gère les boutons
-        callback = Index()
-        callback.pipe=pipe
-        axevent = fig.add_axes([0.7, 0.05, 0.1, 0.075])
-        axquit = fig.add_axes([0.81,0.05,0.1, 0.075])
-        bevent = Button(axevent, 'Event')
-        bevent.on_clicked(callback.event)
-        bquit = Button(axquit, 'Quit')
-        bquit.on_clicked(callback.quit)
         #on remet à jour les axes
         ax.relim()
         ax.autoscale_view()
