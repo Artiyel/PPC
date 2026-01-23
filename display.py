@@ -1,4 +1,4 @@
-import multiprocessing
+from multiprocessing import Event, Pipe,Queue, Process
 import time
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Button
@@ -6,13 +6,12 @@ from matplotlib.widgets import Button
 
 import numpy as np
 
-class Index():
-    def event(self,action):
-        ''''''
-        self.pipe.send("event")
-    def quit(self, action):
-        ''''''
-        self.pipe.send("quit")
+def b_quit(events):
+    events[1].set()
+    print("quitter")
+def b_event(events):
+    print("event")
+    events[0].set()
 
 def workertest(queue):
     while True:
@@ -32,11 +31,11 @@ def workertest(queue):
         time.sleep(1)
         queue.put(("pred",3))
 
-def servertest(pipe):
-    while True:
-        print(pipe.recv())
+def servertest(events):
+        events[1].wait()
+        print("ca fonctionne")
 
-def display(queue,pipe):
+def display(queue,events):
     '''
     '''
     run = True
@@ -54,15 +53,17 @@ def display(queue,pipe):
     line_pred,  = ax.plot([], [], label="Pred")
     fig.legend()
 
+    cgrass = [0]
+    cprey = [0]
+    cpred = [0]
+
     #on gère les boutons
-    callback = Index()
-    callback.pipe=pipe
     axevent = fig.add_axes([0.7, 0.05, 0.1, 0.075])
     axquit = fig.add_axes([0.81,0.05,0.1, 0.075])
     bevent = Button(axevent, 'Event')
-    bevent.on_clicked(callback.event)
+    bevent.on_clicked(lambda _: events[1].set())
     bquit = Button(axquit, 'Quit')
-    bquit.on_clicked(callback.quit)
+    bquit.on_clicked(lambda _: events[0].set())
 
     while run:
         try :
@@ -77,6 +78,9 @@ def display(queue,pipe):
             #on ajoute les données des secondes où il n'y a pas eu de changement
             while time.perf_counter()-reftime > len(log):
                 log.append(list(log[-1]))
+                cgrass.append(cgrass[-1])
+                cprey.append(cprey[-1])
+                cpred.append(cpred[-1])
 
             match data[0]:
                 case "grass":
@@ -88,9 +92,9 @@ def display(queue,pipe):
     
 
         #on crée les courbes en récupérant les données
-        cgrass = [elem[0] for elem in log]
-        cprey = [elem[1] for elem in log]
-        cpred = [elem[2] for elem in log]
+        cgrass[-1] = log[-1][0]
+        cprey[-1] = log[-1][1]
+        cpred[-1] = log[-1][2]
 
         t=np.arange(0,len(log),1) #axe des x
         #on assigne les données à leurs courbes respectives
@@ -110,11 +114,13 @@ def display(queue,pipe):
 
 
 if __name__ == '__main__':
-    queue = multiprocessing.Queue(10)
-    pipe = multiprocessing.Pipe()
-    worker = multiprocessing.Process(target = workertest, args = (queue,))
-    read = multiprocessing.Process(target=display,args=(queue,pipe[1]))
-    serv = multiprocessing.Process(target=servertest, args = (pipe[0],))
+    queue = Queue(10)
+    event = Event()
+    quit = Event()
+    events = [event,quit]
+    worker = Process(target = workertest, args = (queue,))
+    read = Process(target=display,args=(queue,events))
+    serv = Process(target=servertest, args = (events,))
     worker.start()
     read.start()
     serv.start()
