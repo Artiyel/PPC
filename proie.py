@@ -1,6 +1,7 @@
 import random,time
 
 def proie():
+    time.sleep(10) #pour avoir le temps de lancer le serveur avant que la connection ne s'effectue
     energie=100
     while energie>0:
         time.sleep(random.randint(0,5))

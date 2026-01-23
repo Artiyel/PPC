@@ -1,16 +1,8 @@
 from multiprocessing import Lock,Process,Array,Value,Queue
-import threading,random,socket
+import select,random,socket
 import grass,predateur,proie
-from json import loads
-
-populations = Array('i', [10,10,10])
-lock_pops= populations.get_lock()
-grass_status= Value("s",'normal')
-pid_log={
-    "pred":[],
-    "proie":[],#liste de tuples (pid:process)
-}
-pid_log_lock=Lock()
+from pickle import loads
+from concurrent.futures import ThreadPoolExecutor
 
 
 def server_request_update(client_socket):
@@ -18,6 +10,8 @@ def server_request_update(client_socket):
     client_socket.setblocking(True)
     try:
         liste = loads(client_socket.recv(1024).decode()) #format de liste : ["type","espece qui envoie l'info","pid"] type=eats,died,reproduce
+        print(liste)
+        exit
         if liste[0] == 'died':
             with pid_log_lock:
                 for i, (pid, processus) in enumerate(pid_log[liste[1]]):
@@ -82,22 +76,21 @@ def server_request_update(client_socket):
         
 
 if __name__ == '__main__':
-    #intialiser le serveur qui gere la commmunication avec la population.
-    HOST = "localhost"
-    PORT = 1789
-    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server_socket.bind((HOST, PORT))
-    server_socket.listen()
-    server_socket.setblocking(False)
 
-    Process(target=server_request_update, args=()).start()
+    
+    populations = Array('i', [10,10,10])
+    lock_pops= populations.get_lock()
+    grass_status= Value("c",'n')
+    pid_log={
+        "pred":[],
+        "proie":[],#liste de tuples (pid:process)
+    }
+    pid_log_lock=Lock()
 
+    
+    # lancer tout les processssss qui sont client (lancés avec délais
+    # pour permettre de lancer le serveur dans le meme fichier )
 
-
-
-
-
-    # lancer tout les processssss qui sont donc client
     for i in range(len(populations)):
         match i:
             case 0:
@@ -115,4 +108,33 @@ if __name__ == '__main__':
                         pid_log["proie"].append((p.pid,p))
             case 2:
                 Process(target=grass.herbe_growth,args=(populations,grass_status)).start()
+
+
+ 
+    #intialiser le serveur qui gere la commmunication avec la population.
+
+    HOST = "localhost"
+    PORT = 1789
+    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server_socket.bind((HOST, PORT))
+    server_socket.listen()
+    server_socket.setblocking(False)
+
+    pool = ThreadPoolExecutor()
+    
+    print("L'environnement est setup : ")
+
+    sim_running = True
+    while sim_running:
+        try:
+            readable, _, _ = select.select([server_socket], [], [], 1)
+            if server_socket in readable:
+                client_socket, addr = server_socket.accept()
+                pool.submit(server_request_update, client_socket)
+        except OSError:
+            break
+
+
+
+
     
