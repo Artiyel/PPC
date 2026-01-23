@@ -146,7 +146,7 @@ if __name__ == '__main__':
     queue = Queue(10)
     evnevent = Event()
     evnquit = Event()
-    events = [evnevent,evnquit]
+    events = [evnquit,evnevent]
     displ = Process(target = display.display, args = (queue,events))
     displ.start()
 
@@ -156,8 +156,7 @@ if __name__ == '__main__':
 
     sim_running = True
     while sim_running:
-        queue.put(("pred",populations[0]))
-        if  evnquit:
+        if evnquit.wait(timeout=0.01):    
             queue.put(("exit",))
             sim_running = False
             # mettre comment arrêter le reste
@@ -166,6 +165,7 @@ if __name__ == '__main__':
             if server_socket in readable:
                 client_socket, addr = server_socket.accept()
                 pool.submit(server_request_update, client_socket)
+
         except OSError:
             break
 
