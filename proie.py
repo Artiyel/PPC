@@ -6,10 +6,10 @@ def proie_decision(energie,client_socket):
     while energie>0:
         time.sleep(random.randint(1,5))
         if energie > 80:
-            action=["reproduce","pred",f"{getpid()}"]
+            action="reproduce"
 
         elif energie <40 :
-            action=["eats","pred",f"{getpid()}"]
+            action="eats"
             succes = client_socket.recv(1024).decode()
             if succes=="yes":
                 energie+=20
@@ -31,7 +31,7 @@ def proie():
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
         client_socket.connect((HOST, PORT))
         while True:
-            m,energie = predateur_decision(energie,client_socket)
+            m,energie = proie_decision(energie,client_socket)
             if m != None:
                 client_socket.send(dumps(m))
     
