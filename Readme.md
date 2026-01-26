@@ -7,6 +7,10 @@ Alexis:
 * Debuggage général et check si erreur de logique que je n'avais pas vue --> repérage d'une erreur a la fermeture des connections, solution implémentée inspirée de la suggestion de l'ia
 * beaucoup d'affichages d'erreures dans la console --> L'ia m'a renseigné sur la signification des messages d'erreur, j'ai pu aviser si il était pertinant de les afficher ou non
 
+Martin :
+* debuggage du display, notamment avec des problèmes de crash ou d'animation ne fonctionnant pas. Les réponses obtenues se sont souvent avérées inutiles car l'ia rapportait des problèmes d'optimisation ou de choix de méthodes pour la transmission d'informations (event vs queue,...) au lieu des vrais problèmes qui étaient souvent liés à la position d'une instruction par rapport aux autres.
+* Beaucoup de recherches sur des forums, notamment stackoverflow, où on ne peut pas avoir l'origine du code partagé. Notamment pour l'utilisation des bouttons et l'animation de la fenêtre matplotlib.
+
 ## Rapport
 Notre projet comporte 5 fichier,les quatre classiques : `env.py` `proie.py` `predateur.py` `display.py` ainsi qu'une addition afin de simplifier `env.py` : `grass.py`.
 Nous avons pris une approche que l'on pourrait décrire comme spéciale dans la conception de notre projet, c'est a dire que le code permettant l'accès a la mémoire partagée se trouve entièrement dans `env.py` mais que l'appel a ces différentes fonction se fait de manière asynchrone par différent thread gérant les sockets communiquant avec les individus présents dans la simulation. Nous reviendrons plus en détail sur ceci dans les parties suivantes.
@@ -18,3 +22,10 @@ Nous avons pris une approche que l'on pourrait décrire comme spéciale dans la 
   Le main initialise aussi la mémoire partagée qui sera utilisée par les autres programmes.
   Enfin, il y a une boucle dans le main qui, tant que la simulation n'est pas indiquée comme finie, gère et accepte les nouveaux individus dans la simulation. (sous la forme de connexion a travers des sockets.)
 * handling des signaux: Le programme est conçu pour recevoir et traiter différement 2 signaux : ``SIGINT`` quand on essaye d'interrompre >>>``martinn ??`` 
+
+## `display.py`
+* `display()` : La fonction gérant l'affichage des courbes représentant les populations ainsi que des boutons d'arrêt du programme et d'évennement de sécheresse.
+  La fonction commence par créer les courbes puis les affiche au fur et à mesure en adaptant les axes et en récupérant les données envoyées par `env.py` par le biais d'une Queue. Les données sont triées par secondes et lorsqu'un nouveau message arrive, il remplace la valeur se trouvant en bout de liste au moment de la réception. On met ensuite à jour le tracé.
+  On crée ensuite deux bouttons, `quit` et `event` :
+    * `quit` active un event qui conditionne la fin du programme dans `env.py`. Le choix de l'utilisation d'un event à la place d'un signal ici nous permet de contrôller le moment où l'information arrive dans l'exécution du programme.
+    * `event` envoie un signal, ``SIGUSR1``, au programme principal pour déclencher l'évenement de sécheresse. Ce signal ne fonctionne que sous linux, windows ne permettant d'utiliser que ``SIGINT`` sans causer de problème et celui-ci étant déjà utilisé.
