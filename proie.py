@@ -50,7 +50,7 @@ def proie():
                     elif succes=="no_reproduce":
                         print("Prey can't reproduce because lonely ); ")
                         
-                except (ConnectionResetError, BrokenPipeError):
+                except (ConnectionResetError, BrokenPipeError,ConnectionAbortedError,ConnectionRefusedError):
                     break
             time.sleep(random.randint(1,5)) #ne fait rien pendant un temps après chaque action
 

@@ -249,7 +249,6 @@ if __name__ == '__main__':
     server_socket.close()
     with serve.get_lock():
         serve=0
-    pool.shutdown(wait=True)
     kill_all_alive(pid_log,pid_log_lock) #tue tout le monde a la fin du programme pour éviter les orphelins
     send_signal_kill(pid_herbe)
     print("\n\n\n\n C'est la fin du programme \n\n\n\n")

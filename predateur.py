@@ -50,8 +50,9 @@ def predateur():
                     elif succes=="no_reproduce":
                         print("Pred can't reproduce because lonely ); ")
 
-                except (ConnectionResetError, BrokenPipeError):
+                except (ConnectionResetError, BrokenPipeError,ConnectionAbortedError,ConnectionRefusedError):
                     break
+
 
             time.sleep(random.randint(1,5)) # attend après chaque action
 
