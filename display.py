@@ -1,17 +1,18 @@
 from multiprocessing import Event, Pipe,Queue, Process
-import time
+import time,os
+from signal import signal, SIGUSR1
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Button
 
 
 import numpy as np
 
-def b_quit(events):
-    events[1].set()
+'''def b_quit(event):
+    event.set()
     print("quitter")
 def b_event(events):
     print("event")
-    events[0].set()
+    events[0].set()'''
 
 def workertest(queue):
     while True:
@@ -35,7 +36,7 @@ def servertest(events):
         events[1].wait()
         print("ca fonctionne")
 
-def display(queue,events):
+def display(queue,event,pid):
     '''
     '''
     run = True
@@ -61,9 +62,9 @@ def display(queue,events):
     axevent = fig.add_axes([0.7, 0.05, 0.1, 0.075])
     axquit = fig.add_axes([0.81,0.05,0.1, 0.075])
     bevent = Button(axevent, 'Event')
-    bevent.on_clicked(lambda _: events[1].set())
+    bevent.on_clicked(lambda _: os.kill(pid, SIGUSR1))
     bquit = Button(axquit, 'Quit')
-    bquit.on_clicked(lambda _: events[0].set())
+    bquit.on_clicked(lambda _: event.set())
 
     while run:
         try :

@@ -153,7 +153,7 @@ def kill_all_alive(log,lock):
             for pid in log[species]:
                 send_signal_kill(pid)
     
-def stop_simulation(signum,frame):
+def stop_simulation():
     print("on stoppe tout!")
     global sim_running
     sim_running=False
@@ -162,11 +162,25 @@ def stop_simulation(signum,frame):
         serve=0
     queue.put(("exit",))
 
+def handler_signal(signum, frame):
+    if signum == signal.SIGINT:
+        stop_simulation()
+    elif signum == signal.SIGUSR1:
+        secher_hess()
+    
+def secher_hess():
+    '''global grass_secheresse
+    with grass_secheresse.get_lock():
+        grass_secheresse.value = 1'''
+    print("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAHHHHHHHHHHHHH")
+
 
 if __name__ == '__main__':
 
     #init du signal handler qui fini la simulation en cas de ctrl+c
-    signal.signal(signal.SIGINT,stop_simulation)
+    signal.signal(signal.SIGINT,handler_signal)
+    #init du signal qui déclenchge la secheresse
+    signal.signal(signal.SIGUSR1,handler_signal)
 
     #init des morceaux de mémoire qui sont accessible par tout les process,
     #donc protégés par des lock
@@ -174,9 +188,11 @@ if __name__ == '__main__':
     populations = Array('i', [10,10,10]) # nb de [pred,proie,herbe]
     lock_pops= populations.get_lock()
 
+    global grass_secheresse
     grass_secheresse= Value('i',0) # 0 pour non, 1 pour oui
     global serve
     serve = Value('i',1) # 0 pour non, 1 pour oui
+
 
     pid_log={
         "pred":[],
@@ -194,10 +210,8 @@ if __name__ == '__main__':
     #intit de la communication avec le display
 
     queue = Queue(10)
-    evnevent = Event()
     evnquit = Event()
-    events = [evnquit,evnevent]
-    displ = Process(target = display.display, args = (queue,events))
+    displ = Process(target = display.display, args = (queue,evnquit,os.getpid()))
     displ.start()
 
     
