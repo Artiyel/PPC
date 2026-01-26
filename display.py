@@ -7,34 +7,6 @@ from matplotlib.widgets import Button
 
 import numpy as np
 
-'''def b_quit(event):
-    event.set()
-    print("quitter")
-def b_event(events):
-    print("event")
-    events[0].set()'''
-
-def workertest(queue):
-    while True:
-        queue.put(("pred",5))
-        time.sleep(3)
-        queue.put(("prey",3))
-        time.sleep(1)
-        queue.put(("pred",7))
-        queue.put(("pred",4))
-        time.sleep(1)
-        queue.put(("prey",6))
-        time.sleep(1)
-        queue.put(("pred",12))
-        queue.put(("pred",1))
-        time.sleep(1)
-        queue.put(("prey",2))
-        time.sleep(1)
-        queue.put(("pred",3))
-
-def servertest(events):
-        events[1].wait()
-        print("ca fonctionne")
 
 def display(queue,event,pid):
     '''
@@ -109,22 +81,4 @@ def display(queue,event,pid):
         fig.canvas.draw_idle()
         fig.canvas.flush_events()
     plt.ioff()
-    '''action = Index(pipe)
-    event = Button("event","Event")
-    event.on_clicked(pipe.send)'''
 
-
-if __name__ == '__main__':
-    queue = Queue(10)
-    event = Event()
-    quit = Event()
-    events = [event,quit]
-    worker = Process(target = workertest, args = (queue,))
-    read = Process(target=display,args=(queue,events))
-    serv = Process(target=servertest, args = (events,))
-    worker.start()
-    read.start()
-    serv.start()
-    worker.join()
-    read.join()
-    serv.join()
