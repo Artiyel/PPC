@@ -1,7 +1,7 @@
 import random,time,socket
 from os import getpid
 from pickle import dumps
-from signal import SIGTERM,signal,SIGINT,SIG_IGN
+from signal import SIGUSR2,signal,SIGINT,SIG_IGN
 
 def predateur_decision(energie,client_socket):
     if energie > 80:
@@ -17,19 +17,22 @@ def predateur_decision(energie,client_socket):
 
 
 def kill_par_signal(signum, frame):
-    global energie
-    energie= -100 # on le super-tue pour pas qu'il puisse manger quelqu'un et revivre
-
+    global dead
+    dead=True
 
 def predateur():
+    #init des signal handler
+    signal(SIGINT,SIG_IGN) #ne meurt que quand sigterm est appelé
+    signal(SIGUSR2 ,kill_par_signal) #nouveau handler pour sigterm afin de tuer proprement le process
+
+
     #init du predateur
     time.sleep(3) #pour avoir le temps de lancer le serveur avant que la connection ne s'effectue
-    global energie    
+    global energie,dead  
     energie=70
+    dead=False
 
-    #init des signal handler
-    signal(SIGTERM ,kill_par_signal) #nouveau handler pour sigterm afin de tuer proprement le process
-    signal(SIGINT,SIG_IGN) #ne meurt que quand sigterm est appelé
+
     
     #init communication avec env
     HOST = "localhost"
@@ -39,7 +42,10 @@ def predateur():
         while energie>0:
             m,energie = predateur_decision(energie,client_socket)
             if m != None:
-                client_socket.send(dumps(m))
+                try:
+                    client_socket.send(dumps(m))
+                except (BrokenPipeError,ConnectionRefusedError):
+                    pass
                 try:
                     succes = client_socket.recv(1024)
                     if not succes:
@@ -55,9 +61,15 @@ def predateur():
 
 
             time.sleep(random.randint(1,5)) # attend après chaque action
+            if dead:
+                break
 
 
-        client_socket.send(dumps(["died","pred",f"{getpid()}"]))
+        try:
+            client_socket.send(dumps(["died","pred",f"{getpid()}"]))
+        except (BrokenPipeError, OSError):
+            pass
+
         client_socket.close()
 
 

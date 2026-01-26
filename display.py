@@ -1,6 +1,8 @@
 from multiprocessing import Event, Pipe,Queue, Process
 import time,os
 from signal import signal, SIGUSR1
+import matplotlib
+matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Button
 
@@ -13,6 +15,8 @@ def display(queue,event,pid):
     '''
     run = True
     reftime = time.perf_counter()
+
+
 
     log = [[0,0,0]]
     

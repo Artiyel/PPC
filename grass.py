@@ -13,13 +13,14 @@ def herbe_growth(condition,populations,pop_lock):
             print("secheresse pendant 10 secondes !")
             time.sleep(10)
             print("fin de secheresse !")
+            condition.value==0
 
 def stop_that_grass_from_growing_nowwww(signum,frame):
     global sim_running 
     sim_running=False
 
 #init des signals handlers
-signal.signal(signal.SIGTERM,stop_that_grass_from_growing_nowwww)
+signal.signal(signal.SIGUSR2,stop_that_grass_from_growing_nowwww)
 signal.signal(signal.SIGINT, signal.SIG_IGN) #ingore le siginterrupt (histoire qu'il ne meure qu'avec le sigterm)
 
 

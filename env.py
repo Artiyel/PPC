@@ -1,4 +1,6 @@
 from multiprocessing import Lock,Process,Array,Value,Queue,Event
+import multiprocessing
+multiprocessing.set_start_method("spawn", force=True)
 import select,random,socket
 import grass,predateur,proie,display
 from pickle import loads
@@ -32,7 +34,7 @@ def server_request_update(client_socket,serve):
                 try_to_kill(liste,client_socket)
             
     except OSError as e:
-        if e.winerror in (10054,10053):
+        if e.errno  in (32, 104):
             pass #ignorer les erreur de connections fermées
         else:
             print("Client error:", e)
@@ -61,14 +63,13 @@ def try_to_kill(liste,client_socket):
         with lock_pops:
             match liste[1]:
                 case "pred": # si c'est un predateur, on tue une proie au hasard
-                    if populations[1]>0:
+                    if populations[1]>0 and len(pid_log["proie"])>0:
                         succes='yes_ate'
                         with pid_log_lock: 
                             on_tue_ki_index=random.randint(0,len(pid_log["proie"])-1)
                             a=pid_log["proie"][on_tue_ki_index]
-                            send_signal_kill(a)
-                            delete_from_records(["died","proie",a])
-                        send_data_to_display('proie')
+                            send_signal_kill(a) 
+
 
 
                 case "proie": #si c'est une proie qui mange elle enlève juste de l'herbe
@@ -122,7 +123,7 @@ def send_data_to_display(species):
 
 def send_signal_kill(pid):
     try:
-        os.kill(pid, signal.SIGTERM)
+        os.kill(pid, signal.SIGUSR2)
         print(f"{pid} est mort")
     except (ProcessLookupError, PermissionError):
         pass
@@ -153,27 +154,17 @@ def kill_all_alive(log,lock):
         for species in log.keys():
             for pid in log[species]:
                 send_signal_kill(pid)
-    
-def stop_simulation():
-    print("on stoppe tout!")
-    global sim_running
-    sim_running=False
-    global serve
-    with serve.get_lock():
-        serve=0
-    queue.put(("exit",))
+
 
 def handler_signal(signum, frame):
-    if signum == signal.SIGINT:
-        stop_simulation()
-    elif signum == signal.SIGUSR1:
-        secher_hess()
-    
-def secher_hess():
-    '''global grass_secheresse
-    with grass_secheresse.get_lock():
-        grass_secheresse.value = 1'''
-    print("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAHHHHHHHHHHHHH")
+    pending_event(signum)
+
+def pending_event(sig):
+    global etat
+    if sig == signal.SIGINT:
+        etat = "stop"
+    elif sig == signal.SIGUSR1:
+        etat = "secheresse"
 
 
 if __name__ == '__main__':
@@ -189,10 +180,10 @@ if __name__ == '__main__':
     populations = Array('i', [10,10,10]) # nb de [pred,proie,herbe]
     lock_pops= populations.get_lock()
 
-    global grass_secheresse
+    global grass_secheresse,serve,etat
     grass_secheresse= Value('i',0) # 0 pour non, 1 pour oui
-    global serve
     serve = Value('i',1) # 0 pour non, 1 pour oui
+    etat="normal"
 
 
     pid_log={
@@ -233,8 +224,13 @@ if __name__ == '__main__':
         if evnquit.wait(timeout=0.01):  
             sim_running=False  
             queue.put(("exit",))
-            with serve.get_lock():
-                serve.value = 0
+        if etat =="secheresse":
+            with grass_secheresse.get_lock():
+                grass_secheresse.value = 1
+            etat="normal"
+        elif etat == "stop":
+            queue.put(("exit",))
+            sim_running=False
         send_data_to_display("all")
         try:
             readable, _, _ = select.select([server_socket], [], [], 1)
@@ -248,9 +244,11 @@ if __name__ == '__main__':
     print("debut de la fin, quittez vite ce monde numérique avant de vous faire effacer a jamais !\n(seulement si vous avez un Process ID)")
     server_socket.close()
     with serve.get_lock():
-        serve=0
+        serve.value=0
     kill_all_alive(pid_log,pid_log_lock) #tue tout le monde a la fin du programme pour éviter les orphelins
     send_signal_kill(pid_herbe)
+    pool.shutdown(wait=False)
+
     print("\n\n\n\n C'est la fin du programme \n\n\n\n")
 
    
