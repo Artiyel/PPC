@@ -57,24 +57,25 @@ def delete_from_records(liste):
 
 def try_to_kill(liste,client_socket):
     succes='no'
-    with lock_pops:
-        match liste[1]:
-            case "pred": # si c'est un predateur, on tue une proie au hasard
-                if populations[1]>0:
-                    succes='yes_ate'
-                    with pid_log_lock: 
-                        on_tue_ki_index=random.randint(0,len(pid_log["proie"])-1)
-                        a=pid_log["proie"][on_tue_ki_index]
-                        send_signal_kill(a)
-                        delete_from_records(["died","proie",a])
-                    send_data_to_display('proie')
+    if random.randint(0,100)>50: # la chasse c'est dur, ils réussisent pas tout le temps !
+        with lock_pops:
+            match liste[1]:
+                case "pred": # si c'est un predateur, on tue une proie au hasard
+                    if populations[1]>0:
+                        succes='yes_ate'
+                        with pid_log_lock: 
+                            on_tue_ki_index=random.randint(0,len(pid_log["proie"])-1)
+                            a=pid_log["proie"][on_tue_ki_index]
+                            send_signal_kill(a)
+                            delete_from_records(["died","proie",a])
+                        send_data_to_display('proie')
 
 
-            case "proie": #si c'est une proie qui mange elle enlève juste de l'herbe
-                if populations[2]> 0:
-                    populations[2]-=1
-                    send_data_to_display('grass')
-                    succes="yes_ate"
+                case "proie": #si c'est une proie qui mange elle enlève juste de l'herbe
+                    if populations[2]> 0:
+                        populations[2]-=1
+                        send_data_to_display('grass')
+                        succes="yes_ate"
     if succes =="yes_ate":
         print(f"{liste[1]} ({liste[2]}) a mangé")
     client_socket.send(succes.encode())
