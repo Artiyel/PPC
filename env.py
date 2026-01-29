@@ -10,6 +10,7 @@ import signal,os
 
 def server_request_update(client_socket,serve):
     client_socket.setblocking(True)
+    client_socket.settimeout(20)
 
     try:
         while True:
@@ -21,11 +22,20 @@ def server_request_update(client_socket,serve):
             if not data: #si tu reçoit des données vides fin de connection
                 break
             liste = loads(data) #format de liste : ["type","espece qui envoie l'info","pid"] type=eats,died,reproduce
-
-            if liste[0] == 'died':
+            liste[2]=int(liste[2])
+            
+            vivant=False
+            with pid_log_lock:
+                vivant=False
+                for i in pid_log.values():
+                    if liste[2] in i:
+                        vivant=True
+            
+            if liste[0] == 'died' or vivant==False:
                 with lock_pops:
                     with pid_log_lock:
                         delete_from_records(liste)
+                break
 
             elif liste[0] == "reproduce":
                 reproduce_like_a_chad(liste,client_socket)
@@ -33,6 +43,11 @@ def server_request_update(client_socket,serve):
             else:
                 try_to_kill(liste,client_socket)
             
+    except TimeoutError:
+        with lock_pops:
+            with pid_log_lock:
+                delete_from_records(liste)
+
     except OSError as e:
         if e.errno  in (32, 104):
             pass #ignorer les erreur de connections fermées
@@ -42,42 +57,39 @@ def server_request_update(client_socket,serve):
     client_socket.close()
 
 def delete_from_records(liste):
-            #delete du log des programmes vivants
-    for i, pid in enumerate(pid_log[liste[1]]):
-        if pid == liste[2]:
-            del pid_log[liste[1]][i]
-            break 
+    if liste[2] in pid_log[liste[1]]:
+        pid_log[liste[1]].remove(liste[2])
+        match liste[1]:
+            case "pred":
+                populations[0] -= 1
+            case "proie":
+                populations[1] -= 1
+        send_data_to_display(liste[1])
+        print(f"{liste[1]} ({liste[2]}) est mort")
 
-    #delete du compteur de vivant de son espèce
-    match liste[1]:
-        case "pred":
-            populations[0]-=1
-            send_data_to_display('pred')
-        case "proie":
-            populations[1]-=1
-            send_data_to_display('proie')
+def try_to_kill(liste, client_socket):
+    succes = 'no'
+    with lock_pops:
+        match liste[1]:
+            case "pred":
+                if random.randint(0, 100) > 60:
+                    if populations[1] > 0 and len(pid_log["proie"]) > 0:
+                        succes = 'yes_ate'
+                        with pid_log_lock:
+                            target_pid = random.choice(pid_log["proie"])
+                            # supprimer du log avant de tuer
+                            pid_log["proie"].remove(target_pid)
+                            populations[1] -= 1
+                            send_data_to_display('proie')
+                            # tuer le process
+                            os.kill(target_pid, signal.SIGTERM)
 
-def try_to_kill(liste,client_socket):
-    succes='no'
-    if random.randint(0,100)>50: # la chasse c'est dur, ils réussisent pas tout le temps !
-        with lock_pops:
-            match liste[1]:
-                case "pred": # si c'est un predateur, on tue une proie au hasard
-                    if populations[1]>0 and len(pid_log["proie"])>0:
-                        succes='yes_ate'
-                        with pid_log_lock: 
-                            on_tue_ki_index=random.randint(0,len(pid_log["proie"])-1)
-                            a=pid_log["proie"][on_tue_ki_index]
-                            send_signal_kill(a) 
-
-
-
-                case "proie": #si c'est une proie qui mange elle enlève juste de l'herbe
-                    if populations[2]> 0:
-                        populations[2]-=1
-                        send_data_to_display('grass')
-                        succes="yes_ate"
-    if succes =="yes_ate":
+            case "proie":
+                if populations[2] > 0:
+                    populations[2] -= 1
+                    send_data_to_display('grass')
+                    succes = "yes_ate"
+    if succes == "yes_ate":
         print(f"{liste[1]} ({liste[2]}) a mangé")
     client_socket.send(succes.encode())
 
@@ -90,17 +102,18 @@ def reproduce_like_a_chad(liste,client_socket):
                     populations[0]+=1
                     p=Process(target=predateur.predateur, args=())
                     p.start()
-                    success="yes"
+                    success="reproduced"
                     with pid_log_lock:
                         pid_log["pred"].append(p.pid)
                 send_data_to_display("pred")
+
         case "proie":
             with populations.get_lock():
                 if populations[1]>1:
                     populations[1]+=1
                     p=Process(target=proie.proie, args=())
                     p.start()
-                    success="yes"
+                    success="reproduced"
                     with pid_log_lock:
                         pid_log["proie"].append(p.pid)
                 send_data_to_display("proie")

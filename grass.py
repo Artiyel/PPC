@@ -13,7 +13,7 @@ def herbe_growth(condition,populations,pop_lock):
             print("secheresse pendant 10 secondes !")
             time.sleep(10)
             print("fin de secheresse !")
-            condition.value==0
+            condition.value=0
 
 def stop_that_grass_from_growing_nowwww(signum,frame):
     global sim_running 

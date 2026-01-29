@@ -1,75 +1,58 @@
-import random,time,socket
-from os import getpid
+import random, time, socket, os
 from pickle import dumps
-from signal import signal,SIGINT,SIG_IGN,SIGUSR2
+from signal import signal, SIGTERM
 
-def proie_decision(energie,client_socket):
+def proie_decision(energie, client_socket):
     if energie > 80:
-        action="reproduce"
+        action = "reproduce"
+    elif energie < 60:
+        action = "eats"
+    else:
+        return None, energie - 5
+    return [action, "proie", f"{os.getpid()}"], energie - 10
 
-    elif energie <40 :
-        action="eats"
-    else :
-        return None, energie-5
-
-    return [action,"proie",f"{getpid()}"],energie-10
- 
-
-
-def kill_par_signal(signum, frame):
-    global dead
-    dead=True
-
+# signal handler pour mort forcée  
+def die_now(signum, frame):
+    os._exit(0)
+signal(SIGTERM, die_now)
 
 def proie():
+    energie = 70
+    HOST, PORT = "localhost", 1789
 
-    #init des signals handler
-    signal(SIGINT,SIG_IGN) #ne meurt que quand sigterm est appelé
-    signal(SIGUSR2 ,kill_par_signal) #nouveau handler pour sigterm afin de tuer proprement le process
-
-
-    #init proie
-    time.sleep(2) #pour avoir le temps de lancer le serveur avant que la connection ne s'effectue
-    global energie
-    energie=100
-    dead=False
-    
-
-    #init communication avec env
-    HOST = "localhost"
-    PORT = 1789
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
         client_socket.connect((HOST, PORT))
-        while energie>0:
-            m,energie = proie_decision(energie,client_socket)
-            if m != None:
+        client_socket.settimeout(15)
+
+
+        while energie > 0:
+            m, energie = proie_decision(energie, client_socket)
+            if m:
                 try:
                     client_socket.send(dumps(m))
-                except (BrokenPipeError,ConnectionRefusedError):
-                    pass
+                except (BrokenPipeError, ConnectionRefusedError):
+                    break
+
                 try:
                     succes = client_socket.recv(1024)
                     if not succes:
                         break
                     succes = succes.decode()
-                    if succes=="yes_ate":
-                        energie+=20
-                    elif succes=="no_reproduce":
-                        print("Prey can't reproduce because lonely ); ")
-                        
-                except (ConnectionResetError, BrokenPipeError,ConnectionAbortedError,ConnectionRefusedError):
+                    if succes == "you_die":
+                        break
+                    elif succes == "yes_ate":
+                        energie += 40
+                    elif succes == "no_reproduce":
+                        print("Prey can't reproduce because lonely );")
+                    elif succes == "reproduced":
+                        energie -= 10
+                except (ConnectionResetError, BrokenPipeError, TimeoutError, OSError):
                     break
-            time.sleep(random.randint(1,5)) #ne fait rien pendant un temps après chaque action
-            if dead:
-                break
 
+            time.sleep(random.randint(1, 4))
+
+        # mort naturelle : notifier serveur
         try:
-            client_socket.send(dumps(["died","proie",f"{getpid()}"]))
-        except (BrokenPipeError, OSError):
+            client_socket.send(dumps(["died", "proie", f"{os.getpid()}"]))
+        except:
             pass
-        client_socket.close()
-
-    
-    
-if __name__=="__main__":
-    proie()
