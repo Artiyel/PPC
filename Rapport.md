@@ -77,6 +77,18 @@ Les signaux Unix sont utilisés pour gérer des événements globaux et des arr�
 
 Les individus interceptent explicitement le signal de terminaison afin d’effectuer une sortie propre sans interagir avec la mémoire partagée.
 
+### 3.4 Communication par message queue
+
+La communiquation entre `env.py` et `display.py` se fait à l'aide d'une message queue. `env.py` envoie dans la queue des messages de la forme :
+```
+(espèce, nombre d'individus)
+```
+Ou pour arrèter l'affichage :
+```
+("exit",)
+```
+`display.py` récupère les informations transmises et met à jour ses informations selon le message reçu ou arrête l'animation.
+
 ## 4. Algorithmes principaux (pseudo‑code)
 
 ### 4.1 Boucle principale de l’environnement
@@ -134,6 +146,20 @@ TANT QUE simulation active :
         suspendre croissance
 ```
 
+### 4.5 Injection des données sur le graphe
+
+```
+TANT QUE programme lancé :
+    obtenir nouvelle donnée
+    Tant que longuer liste donnée < temps écoulé (en secondes) :
+        rajouter en fin de listes avec la valeur précédente
+    MATCH espèce :
+        remplacer dernière donnée espèce par nouvelle valeur
+    mettre à jour les courbes
+    mettre à jour les axes
+    redessiner la figure
+```
+
 ## 5. Plan de réalisation et tests
 
 Le développement s’est déroulé de la manière suivante:
@@ -170,6 +196,7 @@ Des améliorations possibles incluent :
 * une meilleure modélisation de l’énergie,
 * la posibilité de rajouter/supprimer des individus lors de la simulation
 * plus généralement la possibilité d'interagir avec les individus au cours de la simulation
+* une refonte graphique du display / un autre type d'affichage
 
 ## 8. Conclusion
 
